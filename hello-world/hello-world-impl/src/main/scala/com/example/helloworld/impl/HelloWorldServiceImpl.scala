@@ -896,7 +896,7 @@ private[impl] class HelloWorldEventProcessor(
 // Hello World Serializer Registry
 
 object HelloWorldSerializerRegistry extends JsonSerializerRegistry {
-  override def serializers = List(
+  override def serializers = Vector(
     // Data structures
     JsonSerializer[HelloWorldAdt],
     JsonSerializer[HelloWorldResource],
