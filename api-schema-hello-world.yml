@@ -1,0 +1,40 @@
+---
+# Note this is a somewhat nonstandard yaml file, YAML lint tools will find erroneous errors
+scalar_types:
+  HelloWorldId: String @check("[a-zA-Z0-9\-\.\_\~]{1,128}")
+  Name: String @check("[a-zA-Z0-9\-\.\_\~]{1,128}")
+  Description: String @check(".{1,2048}")
+events:
+  | HelloWorldCreated
+  | HelloWorldDeleted
+  | HelloWorldArchived
+  | HelloWorldUnarchived
+paths:
+  | "/api/hello-worlds": createHelloWorld
+  |
+serviceCalls:
+  | createHelloWorld: ServiceCall[CreateHelloWorldRequest, CreateHelloWorldResponse]
+  | archiveHelloWorld(helloWorldId: UUID): ServiceCall[ArchiveHelloWorldRequest, ArchiveHelloWorldResponse]
+  | getHelloWorld(helloWorldId: UUID): ServiceCall[NotUsed, GetHelloWorldResponse]
+  | getAllHelloWorlds: ServiceCall[NotUsed, GetAllHelloWorldsResponse]
+commands:
+replies:
+type: HelloWorld
+  name: String!
+  description: String
+type: HelloWorldResource
+  helloWorldId: HelloWorldId @isUnique @default(CUID)
+  helloWorld: HelloWorld
+type: HelloWorldAggregate
+  helloWorldId: Uuid! @isUnique
+  helloWorld: HelloWorld
+# All commands include parameters for CorrelationId and SpanId
+type: CreateHelloWorldCommand
+type: CreateHelloWorldRequest
+  helloWorldId: Uuid
+  helloWorld: HelloWorld
+
+# The purpose of the SpanId is to function as a distributed tracing span
+# identifier. If it is missing the command generates a unique identifier.
+# This identifier along with timestamps of
+...
