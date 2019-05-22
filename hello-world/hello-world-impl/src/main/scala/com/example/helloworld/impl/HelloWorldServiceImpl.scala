@@ -748,7 +748,6 @@ private[impl] class HelloWorldEventProcessor(
     readSide
       .builder[HelloWorldEvent]("helloWorldEventOffset")
       .setGlobalPrepare(createTables)
-      .setGlobalPrepare(createIndexes)
       .setPrepare(_ => prepareStatements())
       .setEventHandler[HelloWorldCreatedEvent](e => {
         insertHelloWorld(e.event.helloWorldAggregate)
@@ -777,6 +776,9 @@ private[impl] class HelloWorldEventProcessor(
           |);
         """.stripMargin)
         _ <- session.executeCreateTable("""
+            |CREATE INDEX hello_world_view_nk ON hello_world_view (hello_world_natural_key);
+          """.stripMargin)
+        _ <- session.executeCreateTable("""
           |CREATE TABLE IF NOT EXISTS hello_world_history (
           | hello_world_id text,
           | hello_world_natural_key text,
@@ -787,18 +789,9 @@ private[impl] class HelloWorldEventProcessor(
           | PRIMARY KEY (hello_world_id)
           |);
         """.stripMargin)
-    } yield Done
-  }
-
-  private def createIndexes() = {
-    logger.info("Creating indexes...")
-    for {
-      _ <- session.executeCreateTable("""
-          |CREATE INDEX hello_world_view_nk ON hello_world_view (hello_world_natural_key);
-        """.stripMargin)
-        _ <- session.executeCreateTable("""
-          |CREATE INDEX hello_world_history_nk ON hello_world_history (hello_world_natural_key);
-        """.stripMargin)
+          _ <- session.executeCreateTable("""
+            |CREATE INDEX hello_world_history_nk ON hello_world_history (hello_world_natural_key);
+          """.stripMargin)
     } yield Done
   }
   
@@ -814,27 +807,36 @@ private[impl] class HelloWorldEventProcessor(
           | hello_world_metadata,
           | hello_world_adt
           | ) VALUES (
-          | ?, ?, ?, ?, ?, ?);
+          | :hello_world_id,
+          | :hello_world_natural_key,
+          | :hello_world_revision,
+          | :hello_world_identity,
+          | :hello_world_metadata,
+          | :hello_world_adt);
         """.stripMargin)
       destroyHelloWorld <- session.prepare("""
           |DELETE FROM hello_world_view
           | WHERE hello_world_id = ?;
         """.stripMargin)
-        mutateHelloWorld <- session.prepare("""
-            |UPDATE hello_world_view
-            |   SET hello_world_revision = ?
-            |       hello_world_metadata = ?
-            |       hello_world_adt = ?
-            | WHERE hello_world_id = ?;
-          """.stripMargin)
-        insertHelloWorldHistory <- session.prepare(
-          """
-            |INSERT INTO hello_world_history(
-            | identity,
-            | hello_world
-            | ) VALUES (
-            | ?, ?);
-          """.stripMargin)
+      mutateHelloWorld <- session.prepare("""
+          |UPDATE hello_world_view
+          |   SET hello_world_revision = ?,
+          |       hello_world_metadata = ?,
+          |       hello_world_adt = ?
+          | WHERE hello_world_id = ?;
+        """.stripMargin)
+      insertHelloWorldHistory <- session.prepare(
+        """
+          |INSERT INTO hello_world_history(
+          | hello_world_id,
+          | hello_world_natural_key,
+          | hello_world_revision,
+          | hello_world_identity,
+          | hello_world_metadata,
+          | hello_world_adt
+          | ) VALUES (
+          | ?, ?, ?, ?, ?, ?);
+        """.stripMargin)
     } yield {
       insertHelloWorldStatement = insertHelloWorld
       destroyHelloWorldStatement = destroyHelloWorld
@@ -848,13 +850,13 @@ private[impl] class HelloWorldEventProcessor(
     logger.info(s"Inserting $helloWorldAggregate...")
     Future.successful(
       List(
-        insertHelloWorldStatement.bind(
-          helloWorldAggregate.helloWorldIdentity.identifier,
-          helloWorldAggregate.helloWorldAdt.name,
-          helloWorldAggregate.helloWorldMetadata.revision.toString,
-          implicitly[Format[HelloWorldIdentity]].writes(helloWorldAggregate.helloWorldIdentity).toString, 
-          implicitly[Format[HelloWorldMetadata]].writes(helloWorldAggregate.helloWorldMetadata).toString,
-          implicitly[Format[HelloWorldAdt]].writes(helloWorldAggregate.helloWorldAdt).toString)
+        insertHelloWorldStatement.bind()
+          .setString("hello_world_id", helloWorldAggregate.helloWorldIdentity.identifier)
+          .setString("hello_world_natural_key", helloWorldAggregate.helloWorldAdt.name)
+          .setString("hello_world_revision", helloWorldAggregate.helloWorldMetadata.revision.toString)
+          .setString("hello_world_identity", implicitly[Format[HelloWorldIdentity]].writes(helloWorldAggregate.helloWorldIdentity).toString)
+          .setString("hello_world_metadata", implicitly[Format[HelloWorldMetadata]].writes(helloWorldAggregate.helloWorldMetadata).toString)
+          .setString("hello_world_adt", implicitly[Format[HelloWorldAdt]].writes(helloWorldAggregate.helloWorldAdt).toString)
         //insertHelloWorldSummaryStatement
         //  .bind(helloWorldAggregate.Identity, helloWorldAggregate.helloWorld.name),
         //insertHelloWorldByNameStatement
@@ -875,21 +877,21 @@ private[impl] class HelloWorldEventProcessor(
       ))
   }
 
-  private def mutateHelloWorld(helloWorldAggregate: HelloWorldAggregate) = {
-    logger.info(s"Mutating $helloWorldAggregate...")
-    Future.successful(
-      List(
-        mutateHelloWorldStatement.bind(
-          helloWorldAggregate.helloWorldMetadata.revision.toString,
-          implicitly[Format[HelloWorldMetadata]].writes(helloWorldAggregate.helloWorldMetadata).toString,
-          implicitly[Format[HelloWorldAdt]].writes(helloWorldAggregate.helloWorldAdt).toString,
-          helloWorldAggregate.helloWorldIdentity.identifier)
-        //insertHelloWorldSummaryStatement
-        //  .bind(helloWorldAggregate.Identity, helloWorldAggregate.helloWorld.name),
-        //insertHelloWorldByNameStatement
-        //  .bind(helloWorldAggregate.Identity, helloWorldAggregate.helloWorld.name)
-      ))
-  }
+  //private def mutateHelloWorld(helloWorldAggregate: HelloWorldAggregate) = {
+  //  logger.info(s"Mutating $helloWorldAggregate...")
+  //  Future.successful(
+  //    List(
+  //      mutateHelloWorldStatement.bind(
+  //        helloWorldAggregate.helloWorldMetadata.revision.toString,
+  //        implicitly[Format[HelloWorldMetadata]].writes(helloWorldAggregate.helloWorldMetadata).toString,
+  //        implicitly[Format[HelloWorldAdt]].writes(helloWorldAggregate.helloWorldAdt).toString,
+  //        helloWorldAggregate.helloWorldIdentity.identifier)
+  //      //insertHelloWorldSummaryStatement
+  //      //  .bind(helloWorldAggregate.Identity, helloWorldAggregate.helloWorld.name),
+  //      //insertHelloWorldByNameStatement
+  //      //  .bind(helloWorldAggregate.Identity, helloWorldAggregate.helloWorld.name)
+  //    ))
+  //}
 
 }
 
