@@ -352,6 +352,7 @@ class HelloWorldServiceImpl(
         Future.successful {
           (HelloWorldCreated(
              helloWorldAggregate.helloWorldIdentity,
+             helloWorldAggregate.helloWorldMetadata.revision,
              HelloWorldResource(helloWorldAggregate.helloWorldAdt, helloWorldAggregate.helloWorldMetadata)
            ),
            offset)

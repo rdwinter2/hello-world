@@ -1,0 +1,19 @@
+---
+"""
+Hello World lagom application
+"""
+# Behaviours
+A "Hello World entity" should "create a new helloWorld when it receives a CreateHelloWorld action"
+A "Hello World service" should "..."
+# State
+HelloWorldState:
+  helloWorldAggregate: HelloWorldAggregate
+  status: HelloWorldStatus.Status! = HelloWorldStatus.NONEXISTENT
+HelloWorldAggregate:
+  helloWorldIdentity: HelloWorldIdentity!
+  helloWorldMetadata: HelloWorldMetadata!
+  helloWorldAdt: HelloWorldAdt!
+HelloWorldStatus:
+  Status: NONEXISTENT | ACTIVE | ARCHIVED | UNKNOWN
+
+...

@@ -581,7 +581,9 @@ sealed trait HelloWorldMessageBrokerEvent {
 
 final case class HelloWorldCreated(
   helloWorldIdentity: HelloWorldIdentity,
-  helloWorldResource: HelloWorldResource
+  revision: Int,                             // The change number for this entity (berfore or after this persistance?)
+  helloWorldResource: HelloWorldResource,
+  version: Int = 0                           // The minor version of the HelloWorldCreated event. A change in the event's major requires use of a new event. 
 ) extends HelloWorldMessageBrokerEvent
 
 object HelloWorldCreated {
