@@ -3,8 +3,10 @@
 Hello World lagom application
 """
 # Behaviours
-A "Hello World entity" should "create a new helloWorld when it receives a CreateHelloWorld action"
-A "Hello World service" should "..."
+"Hello World entity" should "say hello by default"
+"Hello World entity" should "allow updating the greeting message"
+"Hello World service" should "say hello"
+"Hello World service" should "allow responding with a custom message"
 # State
 HelloWorldState:
   helloWorldAggregate: HelloWorldAggregate
@@ -15,5 +17,7 @@ HelloWorldAggregate:
   helloWorldAdt: HelloWorldAdt!
 HelloWorldStatus:
   Status: NONEXISTENT | ACTIVE | ARCHIVED | UNKNOWN
-
+# Events
+# Commands
+# Queries
 ...
